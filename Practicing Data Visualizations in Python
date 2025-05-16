@@ -1,0 +1,134 @@
+# Exercise 1
+
+## Q1. Import each of the datasets.
+
+%cd C:\Users\Fatima\Downloads
+
+import os
+import numpy as np
+import pandas as pd
+
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+import seaborn as sb
+
+import sas7bdat
+from sas7bdat import *
+from datetime import datetime as dt
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+supdemoca = pd.read_sas("./supdemoca.sas7bdat")
+supdemoha = pd.read_sas("./supdemoha.sas7bdat")
+supdemosk = pd.read_sas("./supdemosk.sas7bdat")
+supdemoto = pd.read_sas("./supdemoto.sas7bdat")
+supdemovr = pd.read_sas("./supdemovr.sas7bdat")
+supboneca = pd.read_sas("./supboneca.sas7bdat")
+supboneha = pd.read_sas("./supboneha.sas7bdat")
+supbonesk = pd.read_sas("./supbonesk.sas7bdat")
+supboneto = pd.read_sas("./supboneto.sas7bdat")
+supbonevr = pd.read_sas("./supbonevr.sas7bdat")
+supfxca = pd.read_sas("./supfxca.sas7bdat")
+supfxha = pd.read_sas("./supfxha.sas7bdat")
+supfxsk = pd.read_sas("./supfxsk.sas7bdat")
+supfxto = pd.read_sas("./supfxto.sas7bdat")
+supfxvr = pd.read_sas("./supfxvr.sas7bdat")
+
+## Q2a.  	Combine / Append each site’s DEMO datasets together. 
+
+frames = [supdemoca, supdemoha, supdemosk, supdemoto, supdemovr]
+supdemo_total = pd.concat(frames, keys = ["a", "b", "c", "d", "e"])
+
+supdemo_total
+
+## Q2b.  	Combine / Append each site’s FX datasets together. 
+
+framesfx = [supfxca, supfxha, supfxsk, supfxto, supfxvr]
+supfx_total = pd.concat(framesfx, keys = ["a", "b", "c", "d", "e"])
+
+##  Q2c.  	Combine / Append each site’s BONE datasets together.
+
+framesbone = [supboneca, supboneha, supbonesk, supboneto, supbonevr]
+supbone_total = pd.concat(framesbone, keys = ["a", "b", "c", "d", "e"])
+
+## Q3.  	Merge all of the datasets you created from Q1a to Q1c together, by ID. Make sure to prioritize the DEMO dataset and do a LEFT merge. Your final dataset should only include cases that exist in the DEMO dataset but not the other datasets. 
+ 
+
+supdemofx = supdemo_total.merge(supfx_total, on ='ID', how = 'left')
+
+supdemofx
+
+sup_total = supdemofx.merge(supbone_total, on = 'ID', how = 'left')
+
+sup_total
+
+## Q4.	Calculate body mass index (BMI) = weight (in kilograms) / height (in meters) squared. 
+
+sup_total['BMI'] = sup_total['weight']/((sup_total['height']/100)*2)
+
+sup_total
+
+sup_total['StudyEndDate']= pd.to_datetime(sup_total['StudyEndDate'], errors = 'coerce')
+sup_total['CTDate'] = pd.to_datetime(sup_total['CTDate'], errors = 'coerce')
+
+## Q5a. 	Calculate the number of months elapsed between CTDate and StudyEndDate. Assign this to a variable called “TimetoStudyEnd” 
+
+sup_total['TimetoStudyEnd'] = (sup_total['StudyEndDate'] - sup_total['CTDate']).dt.days /30.44
+sup_total
+
+## Q5b.	Calculate the number of months elapsed between CTDate and FractureDate. Assign this to a variable called “TimetoFracture” 
+
+sup_total['TimetoFracture'] = pd.to_datetime(sup_total['TimetoFracture'], errors = 'coerce')
+
+sup_total['TimetoFracture'] = ((sup_total['FractureDate'] - sup_total['CTDate']).dt.days)/30.437
+
+sup_total
+
+#show only those with number values
+sup_total.loc[sup_total['TimetoFracture'] > 0, 'TimetoFracture']
+
+##  Q5c.	Create a new variable that takes on the value of:   “TimetoStudyEnd”  IF FractureYN = 0	and “TimetoFracture” IF FractureYN = 1 Assign this to a variable called “TimetoEvent”
+
+
+#check fracture variable values
+sup_total['FractureYN'].value_counts()
+
+sup_total.loc[sup_total['FractureYN'] == 0, 'TimetoEvent'] = sup_total['TimetoStudyEnd']
+sup_total.loc[sup_total['FractureYN'] == 1, 'TimetoEvent'] = sup_total['TimetoFracture']
+
+sup_total
+
+## Q6.	In this prospective cohort study, give an example of an exposure and an outcome that would make sense to investigate. 
+
+# Exposure - 
+# Outcome - 
+
+##  Q7. 	Plot a histogram to display the distribution of the “TimetoEvent” variable.   Make sure to label all axes with proper units.  Fit a probability density curve to the distribution. 
+
+
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(8,8))
+sns.distplot(sup_total['TimetoEvent'], hist=True, kde=True)
+plt.title('Distribution of TimetoEvent Variable', fontsize=18)
+plt.xlabel('Time to event (in months)', fontsize=16)
+plt.ylabel('Probability Density', fontsize=16)
+
+
+## Q8.	Plot a scatterplot to show the relationship between BoneDensity and BoneSpacing – use BoneDensity as the x-axis.  Colour the dots so that those with a Fracture (FractureYN) is one colour and those without a fracture is a different colour.  Make sure to label all axes with proper units (density is in g/cm3 and spacing is in mm). 
+ 
+
+plt.figure(figsize=(8,8))
+sns.scatterplot(x='BoneDensity', y='BoneSpacing', data = sup_total, hue = 'FractureYN', size=100)
+plt.title('Relationship between BoneSpacing and BoneDensity', fontsize=18)
+plt.xlabel('Bone Density (g/cm3)', fontsize=16)
+plt.ylabel('Bone Spacing (mm)', fontsize=16)
+
+## Q9. 	Plot a bar graph to compare BoneFracture in those with versus without a PreviousFracture.  Make sure to label all axes with proper units.
+ 
+
+plt.figure(figsize=(8,8))
+sns.barplot(data=sup_total, x='PreviousFracture', y='BoneFraction')
+plt.title('Bone Fraction in those with vs Without a Previous Fracture', fontsize=18)
+plt.xlabel('Previous Fracture', fontsize=16)
+plt.ylabel('Bone Fraction (tb BV/TV)', fontsize=16)
