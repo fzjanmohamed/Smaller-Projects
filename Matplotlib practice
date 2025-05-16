@@ -1,0 +1,31 @@
+#Load all necessary packages
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as s
+
+#Let's read in wage csv data
+
+minwagedata = pd.read_csv('https://raw.githubusercontent.com/ljanastas/Data/master/minwagedata.csv')
+minwagedata
+
+#Subset data and look for recent data after 1999, specifically examine the high value
+#take the mean of the High Value 
+highwage2000 = minwagedata.loc[minwagedata['Year']> 1999, 'High.Value']
+
+highwage2000
+
+#What does the distribution look like?  How spread out the data?  Symmetric or skewed?
+plt.hist(highwage2000) #plot of a particular subset variable but could also be done on a non-subset variable
+plt.show
+
+#how to obtain the same thing but with multiple States
+#get only rows of a particular variable where the state is selected
+minwageCA = minwagedata.loc[minwagedata['State'] == 'California', 'High.Value']
+minwageWA = minwagedata.loc[minwagedata['State'] == 'Washington', 'High.Value']
+minwageCA.mean()
+
+minwageWA.mean()
+
+#we can make histograms for all these different states, along with changing parameters of the graphs
+plt.figure(figsize =(7,4))
