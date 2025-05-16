@@ -1,0 +1,120 @@
+import pandas as pd
+from datetime import datetime as dt
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from patsy import dmatrices
+import statsmodels.api as sm
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LogisticRegression
+
+%pwd
+
+%cd C:\\Users\\Fatima\\Documents\\Fatima\\Michener\\Digital Health and Data Analytics\\Data Analytics II
+
+xtrcovbs = pd.read_sas("xtrfxcovbs.sas7bdat",format='sas7bdat')
+
+xtrcovbs.columns = xtrcovbs.columns.str.lower()
+
+xtrcovbs.columns
+
+xtrfx = xtrcovbs[["t_tbsp", "height", "weight", "newosteofx", "age", "t_ctth"]].dropna()
+
+x = xtrfx[["t_tbsp"]] # 2D array
+y = xtrfx["newosteofx"]
+
+x1 = sm.add_constant(x)
+
+fxmod2 = sm.Logit(y, x1)
+model2fit = fxmod2.fit()
+
+print(model2fit.summary())
+
+model2fit.params
+
+round(np.exp(model2fit.params),2)
+
+orparm = model2fit.params
+conf = model2fit.conf_int()
+
+conf['Odds Ratio'] = orparm
+conf.columns = ['5%', '95%', 'Odds Ratio']
+
+ortable = round(np.exp(conf), 2)
+ortable
+
+xtrfx['bmi'] = xtrfx['weight']/(xtrfx['height']/100)**2
+
+xtrfx['bmi']
+
+x2 = xtrfx[["t_tbsp", "age", "bmi"]]
+y2 = xtrfx["newosteofx"]
+
+x1 = sm.add_constant(x)
+
+fxmod3 = sm.Logit(y2, x2)
+model3fit = fxmod3.fit()
+
+print(model3fit.summary())
+
+model3fit.params
+
+round(np.exp(model3fit.params), 2)
+
+np.std(xtrfx['t_tbsp'])
+
+x2b = x2.copy()
+
+x2b['t_tbsp'] = x2b['t_tbsp']/np.std(x2b['t_tbsp'])
+x2b['t_tbsp']
+
+fxmod2b = sm.Logit(y, x2b)
+model2bfit = fxmod2b.fit()
+
+print(model2bfit.summary())
+
+ortable = round(np.exp(model2bfit.params), 2)
+ortable
+
+orparmb = model2bfit.params
+confb = model2bfit.conf_int()
+
+confb['Odds Ratio']= orparmb
+confb.columns = ['5%', '95%', 'Odds Ratio']
+
+ortableb = round(np.exp(confb),2)
+ortableb
+
+def quantile_25 (t_ctth > 0.77):
+    return xtrfx['t_ctth_cat'].quantile (1)
+def quantile_50(xtrfx['t_ctth']<0.96):
+    return xtrfx['t_ctth_cat'].quantile (2)
+def quantile_75 (xtrfx['t_ctth']<1.12):
+    return xtrfx['t_ctth_cat'].quantile (3)
+def quantile_100 (xtrfx['t_ctth']>1.12):
+    return xtrfx['t_ctth_cat'].quantile (4)
+
+xtrfx_sorted = xtrfx.sort_values('t_ctth')
+
+xtrfx["t_ctth"]
+
+xtrfx["t_ctth_cat"]=pd.qcut(xtrfx_sorted['t_ctth'], 4, labels=False)
+xtrfx["t_ctth_cat"]
+
+import patsy
+
+xtrfx2 = xtrfx.copy()
+
+xtrfx2['t_ctth_cat'].value_counts()
+
+xtrfx3 = xtrfx2 [["t_ctth_cat", "newosteofx", "age", "bmi"]].dropna()
+
+y1c, x1c = patsy.dmatrices("newosteofx ~ C(t_ctth_cat, Treatment (reference=3))+ age + bmi",
+                        data=xtrfx3,
+                        return_type="dataframe")
+
+fxmod3c = sm.Logit(y1c, x1c)
+model3cfit = fxmod3c.fit()
+
+print(model3cfit.summary())
