@@ -1,0 +1,144 @@
+#import packages
+import os
+import numpy as np
+import pandas as pd
+
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+import seaborn as sb
+
+import sas7bdat
+from sas7bdat import *
+from datetime import datetime as dt
+
+
+
+
+%pwd
+os.getcwd()
+
+
+help(print)
+
+workingdir ='C:\\Users\Fatima\Documents\Fatima\Michener\Digital Health and Data Analytics\Data Analytics I'
+
+os.chdir(workingdir)
+
+# Testing Out Headings
+
+**Testing** is *fun*
+
+# 1) From assignment 1, import the provided xlsx files (the same ones you imported into MSAccess) into Jupyter:   
+Comment2, FallTable2, InterviewTable2, MedicalHistory2, SurgicalHistory2
+
+falltable = pd.read_excel("FallTable2.xlsx")
+falltable
+
+interviewtable = pd.read_excel("InterviewTable2.xlsx")
+interviewtable
+
+
+
+
+
+
+
+surgicalhistory = pd.read_excel("SurgicalHistory2.xlsx")
+surgicalhistory
+
+comment = pd.read_excel("Comment2.xlsx")
+comment
+
+medicalhistory = pd.read_excel("MedicalHistory2.xlsx")
+medicalhistory
+
+medicalhistory.columns
+
+# 2) Sort each of them by SubjectID
+
+falltable.sort_values(by=['SubjectID'], ascending = [True])
+
+interviewtable.sort_values(by=['SubjectID'], ascending = [True])
+
+surgicalhistory.sort_values(by=['SubjectID'], ascending = [True])
+
+comment.sort_values(by=['SubjectID'], ascending = [True])
+
+medicalhistory.sort_values(by=['SubjectID'], ascending = [True])
+
+# 3) Merge all of them together in an inner join as a new dataframe
+
+medicalmerge = medicalhistory.merge(surgicalhistory, on='SubjectID',
+                         how = 'inner')
+
+fallmerge = medicalmerge.merge(falltable, on='SubjectID',
+                                  how = 'inner')
+
+interviewmerge = fallmerge.merge(interviewtable, on='SubjectID', 
+                                how = 'inner')
+
+ambstudy = interviewmerge.merge(comment, on= "SubjectID", 
+                               how = 'inner')
+
+# 4) Calculate time SINCE the interview date (SIDateiv) - using your "today"'s date - expressed in months  (call this  timesinceint)
+
+ambstudy
+
+ambstudy['timesinceint'] = (dt.today() - ambstudy['SIDateiv']).dt.days
+ambstudy
+
+ambstudy['timesinceintm'] = (ambstudy['timesinceint']/365.25)*12
+ambstudy
+
+
+ambstudy.columns = ambstudy.columns.str.lower()
+ambstudy.columns
+
+# 6) Subset this dataframe by selecting only cases where  timesinceint is >= mean of the value of  timesinceint across all participants (e.g. the 50% most recent participants)
+
+import statistics
+
+ambrecent = ambstudy[ambstudy['timesinceintm'] >= statistics.mean(ambstudy['timesinceintm'])]
+ambrecent
+
+round(statistics.mean(ambstudy['timesinceintm']), 2)
+
+# 7) Create another subset of this dataframe from 6) selecting only:  SubjectID and these variables: 
+SDOsteoDiag      SDRheumaDiag SDOADiag            SDLupusDiag      SDHyperthyDiag
+
+vartokeep = ['subjectid', 'sdosteodiag', 'sdrheumadiag', 'sdoadiag', 'sdlupusdiag', 'sdhyperthydiag']
+ambstudysd = ambrecent.loc[0:200, vartokeep]
+
+ambstudysd
+
+ambstudysdnd = ambstudysd.drop_duplicates(keep="first")
+ambstudysdnd
+
+# 8) Recode the yes and no's to 1's and 0's, respectively. Also recode missing data and Don't know to NA. 
+
+varlist = list(ambstudysdnd.columns)[2:6]
+for i in varlist: 
+    ambstudysdnd[i] = ambstudysdnd[i].apply(lambda x: 1 if (x == "Yes" or x =="1") else 0 if (x == "No" or x == "0") else 
+                                                 "NA" if (x=="missing data" or x == "Don't know") else x)
+    
+ambstudysdnd
+
+ambstudysdnd['sdosteodiag'] = ambstudysdnd['sdosteodiag'].apply(lambda x: 1 if (x == "Yes" or x =="1") else 0 if (x == "No" or x == "0") else x)
+ambstudysdnd['sdosteodiag']
+
+ambstudysdnd['sdlupusdiag'] = ambstudysdnd['sdlupusdiag'].apply(lambda x: 1 if (x == "Yes" or x =="1") else 0 if (x == "No" or x == "0") 
+                                                                 else 
+                                                 "NA" if (x=="missing data" or x == "Don't know") else x)
+ambstudysdnd['sdlupusdiag']
+
+# 9) Determine the frequencies of the response categories for these same variables that you've recoded
+
+ambstudysdnd['sdosteodiag'].value_counts()
+
+ambstudysdnd['sdrheumadiag'].value_counts()
+
+ambstudysdnd['sdoadiag'].value_counts()
+
+ambstudysdnd['sdlupusdiag'].value_counts()
+
+ambstudysdnd['sdhyperthydiag'].value_counts()
