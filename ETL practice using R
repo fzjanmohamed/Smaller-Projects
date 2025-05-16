@@ -1,0 +1,240 @@
+install.packages('data.table')
+install.packages('ggplot2')
+install.packages('tidyverse')
+install.packages('tidyr')
+install.packages('plotly')
+install.packages('Hmisc')
+install.packages('sas7bdat')
+install.packages('broom')
+install.packages('esquisse')
+install.packages("readxl")
+install.packages("robustbase")
+install.packages("gtsummary")
+install.packages("rjson")
+install.packages("xlsx")
+
+library(data.table)
+library(sas7bdat)
+library(readxl)
+library(broom)
+library(ggplot2)
+library(tidyr)
+library(anytime)
+library(robustbase)
+library(gtsummary)
+library(rjson)
+
+#1)import xlsx
+surgicalhistory = read_xlsx ("SurgicalHistory2.xlsx", sheet="SurgicalHistory", col_names=TRUE)
+surgicalhistory
+
+medicalhistory = read_xlsx ("MedicalHistory2.xlsx", sheet="MedicalHistory", col_names=TRUE)
+medicalhistory
+
+interviewtable = read_xlsx ("InterviewTable2.xlsx", sheet="InterviewTable", col_names = TRUE)
+interviewtable
+
+falltable = read_xlsx ("FallTable2.xlsx", sheet="FallTable", col_names = TRUE)
+falltable
+
+comment = read_xlsx ("Comment2.xlsx", sheet="Comment", col_names = TRUE)
+comment
+
+#convert all names to lowercase
+names(surgicalhistory)=casefold(names(surgicalhistory)) 
+names(surgicalhistory)
+
+names(medicalhistory)=casefold(names(medicalhistory))
+names(medicalhistory)
+
+names(interviewtable)=casefold(names(interviewtable))
+names(interviewtable)
+
+names(falltable)=casefold(names(falltable))
+names(falltable)
+
+names(comment)=casefold(names(comment))
+names(comment)
+
+#2)Sort each of them by SubjectID
+surgicalhistory.sortid = surgicalhistory[order(surgicalhistory$subjectid),]
+surgicalhistory.sortid
+
+medicalhistory.sortid = medicalhistory[order(medicalhistory$subjectid),]
+medicalhistory.sortid
+
+interviewtable.sortid = interviewtable[order(interviewtable$subjectid),]
+interviewtable.sortid
+
+falltable.sortid = falltable[order(falltable$subjectid),]
+falltable.sortid
+
+comment.sortid = comment[order(comment$subjectid),]
+comment.sortid
+
+#3)Merge all of them together in an inner join as a new dataframe
+ambstudy_inner = merge(x=surgicalhistory,y=medicalhistory, by="subjectid")
+ambstudy_inner
+
+ambstudy1_inner = merge(x=ambstudy_inner, y=interviewtable, by="subjectid")
+ambstudy1_inner
+
+ambstudy2_inner = merge(x=ambstudy1_inner, y=falltable, by="subjectid")
+ambstudy2_inner
+
+ambstudyall_inner = merge(x=ambstudy2_inner, y=comment, by="subjectid")
+ambstudyall_inner
+
+#4)Calculate time SINCE the interview date (SIDateiv) - using your "today"'s date - expressed in months  (call this timesinceint)
+
+ambstudyall = data.table(ambstudyall_inner)
+
+install.packages("anytime")
+
+todaydate = anytime("2021-10-31")
+
+ambstudyall = ambstudyall[!duplicated(ambstudyall),]
+
+ambstudyall$timesinceintd = difftime(todaydate,ambstudyall$sidateiv, units = c("days"))
+timesinceint = round(as.numeric((ambstudyall$timesinceintd)/365.25)*12,0)
+timesinceint
+
+#6)Subset this dataframe by selecting only cases where timesinceint is >= mean of the value of timesinceint across all 
+#participants (e.g. the 50% most recent participants) 
+
+ambstudyalltimesinceint = ambstudyall[c(timesinceint >= mean(timesinceint)),]
+ambstudyalltimesinceint
+
+#7)Create another subset of this dataframe from 6) selecting only:  SubjectID and these variables: 
+ambstudyalldiag = ambstudyalltimesinceint[,c(1,12,15,18,21,24)]
+ambstudyalldiag
+
+#8) Use the mutate function to recode the yes and no's to 1's and 0's, respectively. Also recode 
+#missing data and Don't know to NA. 
+
+install.packages("dplyr")
+
+library(dplyr)
+
+ambdiag = ambstudyalldiag[,c(1:6)]
+ambdiag
+
+
+ambstudyallsdosteodiag = mutate(ambstudyalldiag, ifelse(sdosteodiag == "Yes","1",
+                                                        ifelse(sdosteodiag == "No", "0", 
+                                                               ifelse(sdosteodiag =="missing data", "NA", 
+                                                                      ifelse(sdosteodiag =="Don't Know", "NA", sdosteodiag)))))
+ambstudyallsdosteodiag
+
+ambstudyallsdrheumadiag = mutate(ambstudyalldiag, ifelse(sdrheumadiag == "Yes","1",ifelse(sdrheumadiag == "No", "0", ifelse(sdrheumadiag =="missing data", "NA", ifelse(sdrheumadiag =="Don't Know", "NA", sdrheumadiag)))))
+ambstudyallsdrheumadiag
+
+ambstudyallsdoadiag = mutate(ambstudyalldiag, ifelse(sdoadiag == "Yes","1",ifelse(sdoadiag == "No", "0", ifelse(sdoadiag =="missing data", "NA", ifelse(sdoadiag =="Don't Know", "NA", sdoadiag)))))
+ambstudyallsdoadiag
+
+ambstudyallsdlupusdiag = mutate(ambstudyalldiag, ifelse(sdlupusdiag == "Yes","1",ifelse(sdlupusdiag == "No", "0", ifelse(sdlupusdiag =="missing data", "NA", ifelse(sdlupusdiag =="Don't Know", "NA", sdlupusdiag)))))
+ambstudyallsdlupusdiag
+
+ambstudyallsdhyperthydiag = mutate(ambstudyalldiag, ifelse(sdhyperthydiag == "Yes","1",ifelse(sdhyperthydiag == "No", "0", ifelse(sdhyperthydiag =="missing data", "NA", ifelse(sdhyperthydiag =="Don't Know", "NA", sdhyperthydiag)))))
+ambstudyallsdhyperthydiag
+
+ambrecodeosteo = ambstudyallsdosteodiag[,c(1:6, 10)]
+ambrecodeosteo
+
+ambrecoderheum = ambstudyallsdrheumadiag[,c(1, 10)]
+ambrecoderheum
+
+ambrecodedoa = ambstudyallsdoadiag[,c(1, 10)]
+ambrecodedoa
+
+ambrecodelupus = ambstudyallsdlupusdiag[,c(1,10)]
+ambrecodelupus
+
+ambrecodehyper = ambstudyallsdlupusdiag[,c(1,10)]
+ambrecodehyper
+
+ambrecode = merge(x=ambrecodeosteo,y=ambrecoderheum, by="subjectid", all = TRUE)
+ambrecode1 = merge(x=ambrecode, y=ambrecodedoa, by= "subjectid", all = TRUE)
+
+colnames(ambrecode1) = c("subjectid","sdosteodiag","sdrheumdiag","sdoadiag","sdlupusdiag",
+                         "sdhyperdiag", "sdosteorecode", "sdrheumdrecode", "sdoarecode")
+
+ambrecode2 = merge(x=ambrecode1, y = ambrecodelupus, by= "subjectid", all = TRUE)
+ambrecodefinal = merge(x=ambrecode2, y= ambrecodehyper, by= "subjectid", all = TRUE)
+
+
+colnames(ambrecodefinal) = c("subjectid","sdosteodiag","sdrheumdiag","sdoadiag","sdlupusdiag",
+                             "sdhyperdiag", "sdosteorecode", "sdrheumdrecode", "sdoarecode", "sdlupusrecode", "sdhyperrecode")
+
+ambrecodefinal
+
+#9) Create a separate dataframe just like in 7 and try to recode again using the ifelse statement 
+amstudyall2$dxoa0<-ifelse(amstudyall2$dxoa0 == "yes","1",ifelse(amstudyall2$dxoa0 == "no", "0", amstudyall2$dxoa0))
+amstudyall2
+
+library(data.table)
+
+ambsecondrecode = data.table(ambdiag)
+ambsecondrecode
+
+
+
+ambsecondrecode$sdosteodiag = ifelse(ambsecondrecode$sdosteodiag == "Yes","1",
+                                  ifelse(ambsecondrecode$sdosteodiag == "No", "0", 
+                                     ifelse(ambsecondrecode$sdosteodiag =="missing data", "NA", 
+                                        ifelse(ambsecondrecode$sdosteodiag =="Don't Know", "NA", ambsecondrecode$sdosteodiag))))                                     
+                                     
+                                     
+ambsecondrecode$sdosteodiag
+                                     
+ambsecondrecode
+
+
+varlist = colnames(ambsecondrecode)[2:6]
+for(i in varlist) {
+  ambsecondrecode[[i]] = ifelse(ambsecondrecode[[i]] == "Yes","1", ifelse(ambsecondrecode[[i]] == "No", "0",
+                                                                         ifelse(ambsecondrecode [[i]] == "missing data", "NA",
+                                                                                ifelse(ambsecondrecode [[i]] == "dont know", "NA",
+                                                                                       ambsecondrecode[[i]]))))
+
+}
+
+ambsecondrecode
+
+
+list = colnames(ambsecondrecode)[2:6]
+for(i in list){
+  ambsecondrecode[[i]] = as.numeric(ambsecondrecode[[i]])
+}
+summary(ambsecondrecode) # looks good
+
+#10) Determine the frequencies of the response categories for these same variables in 7 that you've recoded (2 diff ways)
+
+
+sum(ambrecodefinal$sdosteorecode == "0", na.rm = TRUE)
+sum(ambrecodefinal$sdosteorecode == "1", na.rm = TRUE)
+sum(is.na(ambrecodefinal$sdosteorecode), na.rm = FALSE)
+
+sum(ambrecodefinal$sdrheumdrecode == "0", na.rm = TRUE)
+sum(ambrecodefinal$sdrheumdrecode == "1", na.rm = TRUE)
+sum(is.na(ambrecodefinal$sdrheumdrecode), na.rm = FALSE)
+
+sum(ambrecodefinal$sdoarecode == "0", na.rm = TRUE)
+sum(ambrecodefinal$sdoarecode == "1", na.rm = TRUE)
+sum(is.na(ambrecodefinal$sdoarecode), na.rm = FALSE)
+
+sum(ambrecodefinal$sdlupusrecode == "0", na.rm = TRUE)
+sum(ambrecodefinal$sdlupusrecode == "1", na.rm = TRUE)
+sum(is.na(ambrecodefinal$sdlupusrecode), na.rm = FALSE)
+
+sum(ambrecodefinal$sdhyperrecode == "0", na.rm = TRUE)
+sum(ambrecodefinal$sdhyperrecode == "1", na.rm = TRUE)
+sum(is.na(ambrecodefinal$sdhyperrecode), na.rm = FALSE)
+
+
+ambrecodefinal %>% group_by(sdosteorecode) %>% filter(sdosteorecode == "0") %>% summarise(sdosteorecode = n())
+ambrecodefinal %>% group_by(sdosteorecode) %>% filter(sdosteorecode == "1") %>% summarise(sdosteorecode = n())
+ambrecodefinal %>% group_by(sdosteorecode) %>% filter(is.na(sdosteorecode)) %>% summarise(sdosteorecode = n())
+
+
+
